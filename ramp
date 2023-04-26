@@ -1,0 +1,71 @@
+%matplotlib inline
+import numpy as np 
+import matplotlib.pyplot as plt
+import math as m
+import warnings
+from sympy.interactive import printing 
+import pandas as pd
+printing.init_printing(use_latex = (True))
+import time
+
+
+class ramp:
+    global fsysclk 
+    fsysclk = 1*10**9
+    
+    def __init__(self, y ):
+        self.y = y #y can be 'freq' or 'ampl' or 'hex' or 'dec'
+
+    #give drss,drr and 2 freqs/ampls, returns ramp time, step time, number of steps     
+    def tTn(self,DRR, DRSS, f0, f1, y):
+        drss, drr = int(str(DRSS), 16),int(str(DRR),16)
+        t = drr*4*10**-9
+        a,b,c = 'Step time:', '\nTotal Ramp Time', '\nNumber of steps:'
+        if self.y =='freq': ft = ScaleFactors(f1,'dec').FTW()-ScaleFactors(f0,'dec').FTW()
+        elif self.y =='ampl': ft = (ScaleFactors(f1,'dec').ASF()-ScaleFactors(f0,'dec').ASF())*2**18
+        if isinstance(f0,str) == True and isinstance(f1,str) == True:
+            if self.y =='freq': ft = int(str(f1), 16)-int(str(f0), 16)
+            elif self.y =='ampl': ft = (int(str(f1), 16)-int(str(f0), 16))*2**18
+            n = round(ft/drss)  
+            if y =='print':print(a,t,b,T,c,n)
+            return  t,T,n
+        else:
+            T,n = (t*ft)/drss,round(ft/drss)
+            if y =='print': print(a,t,b,T,c,n)
+            return  t,T,n
+        
+    def step_t(self,DRR):
+        return int(str(DRR),16)*4*10**-9
+
+    def n_steps(self,DRSS,f0,f1): ## add amplitude part 
+        drss = int(str(DRSS), 16)
+        if isinstance(f0,str) == True and isinstance(f1,str) == True: #if you use hex values of FTW
+            ft = int(str(f1),16)-int(str(f0),16)
+            return round(ft/drss)  
+        else: 
+            ft = ScaleFactors(f1,'dec').FTW()-ScaleFactors(f0,'dec').FTW()
+            return round(ft/drss)
+        
+    def T(self, DRR, n):
+        return (int(str(DRR), 16)*4*10**-9)*n
+
+    def framp(self, T, n, f0, f1): #returns DRR, DRSS
+        drr = T/(4*n*10**-9)
+        F0,F1 = ScaleFactors(f0,'dec').FTW(),ScaleFactors(f1,'dec').FTW()
+        drss = (F1-F0)/n
+        return drr,drss
+
+    def aramp(self, T, n, a0, a1): #returns DRR, DRSS
+        drr = T/(4*n*10**-9)
+        A0,A1 = ScaleFactors(a0,'dec').ASF(), ScaleFactors(a1,'dec').ASF()
+        drr,drss = T/(4*n*10**-9),((A1-A0)*2**18)/n
+        if self.y=='hex': return hex(round(drss)), hex(round(drss))
+        elif self.y=='dec': return round(drss), round(drss)
+
+    def f_alias(self,f): #mirror freqs to invert ramp, can input MHz or FTW
+        if isinstance(f,str):
+            a = int(str(f), 16)/(2**32)
+            return round((1-a)*fsysclk*10**-6)
+        else:
+            a = ScaleFactors(f,'dec').FTW()/(2**32)
+            return round((1-a)*fsysclk*10**-6)
