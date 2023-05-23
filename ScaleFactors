@@ -1,3 +1,15 @@
+%matplotlib inline
+import numpy as np 
+import matplotlib.pyplot as plt
+import math as m
+import warnings
+from sympy.interactive import printing 
+import pandas as pd
+printing.init_printing(use_latex = (True))
+import time
+
+
+
 class ScaleFactors:
     
     global afull #full scale amplitude 
