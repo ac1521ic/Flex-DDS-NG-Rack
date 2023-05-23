@@ -49,8 +49,22 @@ class ScaleFactors:
     
     def iPOW(self):
         return (int(str(self.num), 16)*360)/(2**16)
+    
+    def dbm_perc(self): #function converts dbm value to % 
+        dbmin, dbmax = -94, 2 #limits
+        a = 10**(2/20)
+        b = 10**(self.num/20)
+        c = (b/a)*100
+        if c>1: return round(c)
+        else: return c
         
-
+    def perc_dbm(self): #function converts % value to dbm
+        if self.num==0: return -94
+        else:
+            a = 10**(2/20)/100
+            b = m.log10(self.num*a)*20
+            return b
+        
 class ramp:
     global fsysclk 
     fsysclk = 1*10**9
@@ -97,12 +111,14 @@ class ramp:
         drss = (F1-F0)/n
         return drr,drss
 
-    def aramp(self, T, n, a0, a1): #returns DRR, DRSS
+    def aramp(self, T, n, val0, val1, vtype): #returns DRR, DRSS
+        if vtype=='dBm':a0,a1 = val0,val1
+        elif vtype == '%': a0,a1 = ScaleFactors(val0,0).perc_dbm(),ScaleFactors(val1,0).perc_dbm()
         drr = T/(4*n*10**-9)
         A0,A1 = ScaleFactors(a0,'dec').ASF(), ScaleFactors(a1,'dec').ASF()
         drr,drss = T/(4*n*10**-9),((A1-A0)*2**18)/n
-        if self.y=='hex': return hex(round(drss)), hex(round(drss))
-        elif self.y=='dec': return round(drss), round(drss)
+        if self.y=='hex': return hex(round(drr)), hex(round(drss))
+        elif self.y=='dec': return round(drr), round(drss)
 
     def f_alias(self,f): #mirror freqs to invert ramp, can input MHz or FTW
         if isinstance(f,str):
@@ -111,3 +127,18 @@ class ramp:
         else:
             a = ScaleFactors(f,'dec').FTW()/(2**32)
             return round((1-a)*fsysclk*10**-6)
+
+    def DRL(self,a0,): #takes amplitude, gives DRL 
+        afull = +2
+        a = (a0 - afull)/20
+        b = round((10**a)*((2**14)-1))
+        c = hex(b<<2)
+        return c, hex(b)
+    
+    def iDRL(self,drl): #always input a string in '', takes DRL and gives back amplitude dB
+        a = int(str(drl), 16)>>2
+        return ScaleFactors(a, 'hex').iASF()
+    
+
+        
+    
