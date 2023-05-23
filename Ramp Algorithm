@@ -1,0 +1,117 @@
+%matplotlib inline
+import numpy as np 
+import matplotlib.pyplot as plt
+import math as m
+import pandas as pd
+import time
+
+
+def Ramp(T, val0,val1, finalvals, kind):
+    
+    def FTW(num): 
+        a = round(num*(10**6)*(10**-9)*(2**32))
+        return a  
+    
+    def ASF(num):
+        afull = 2 
+        a = (num - afull)/20
+        b = round((10**a)*((2**14)-1))
+        return b
+
+    def error(num):
+        a = round(num)-num
+        if round(num)!=0: return (a/round(num))*100
+        elif round(num)==0: return 2*((a)/(round(num)+num))*100 #i'm using formula err = 2*(exp-mes)/(exp+mes)
+        # Relative Percent Difference
+        #https://math.stackexchange.com/questions/677852/how-to-calculate-relative-error-when-true-value-is-zero
+    
+    def areat(num):
+        dt = 4*10**(-9)*drrf[num]
+        area,Area = ((dff/n[num])*dt)/2,(T*(dff))/2 #freq step is given by drss
+        return area, Area
+    
+    def smooth_err():
+        errors = []
+        for i in range(0,ftab.shape[0],1):
+            a,atot = areat(i)[0],areat(i)[1]
+            errors.append(((a*n[i]/atot)*100))
+        return errors
+        
+    def perc_dbm(perc): #function converts % value to dbm
+        if perc ==0: return -94
+        else:
+            a = (10**(2/20))/100
+            b = m.log10(perc*a)*20
+            return b
+    #_______________________________________ takes a long time, need to reduce n values 
+    
+    def drss_drr(T): 
+        alpha = (T/(4*10**-9))
+        drss,drr = [],[]
+        for i in range(n_min,n_max,1): drss.append(dff/i)
+        for i in range(n_min,n_max,1):drr.append((1/i)*alpha)
+        return drss,drr
+    
+    def algo(lim1,lim2,drss,drr): 
+        err_drss,err_drr,n,drssn,drrn=[],[],[],[],[]
+        for i in range(len(drss)):
+            sol, sol1 = abs(error(drss[i])), abs(error(drr[i]))   
+            if sol<lim1 and sol1<lim2:
+                err_drss.append(sol)
+                err_drr.append(sol1)
+                n.append(x[i])
+                drssn.append(drss[i])
+                drrn.append(drr[i])
+            #else: continue
+        return drssn,drrn,n, err_drss,err_drr
+
+      #_______________________________________
+    
+    s1 = time.time() ##
+    if kind=='freq': dff = FTW(val1)-FTW(val0)
+    elif kind=='ampl': dff = (ASF(val1)-ASF(val0))*2**18
+    elif kind == 'ampl%': 
+        a0,a1 = perc_dbm(val0), perc_dbm(val1)
+        dff = (ASF(a1)-ASF(a0))*2**18
+    alpha = T/(4*10**(-9)*(dff)) 
+    drss_max = (1/alpha)*(65535) 
+    n_min = m.ceil(dff/drss_max) 
+    drss_min = 4 
+    n_max = m.ceil(dff/drss_min) 
+    x = np.arange(n_min,n_max, 1)
+    f1 = time.time() ##
+    print(f1-s1)##
+    
+    #------------------------These two parts take the longest, t3 = 2*t2
+    s2 = time.time() ##
+    drss,drr = drss_drr(T)[0],drss_drr(T)[1]
+    lim1,lim2 = 0.001,1  
+    f2 = time.time() ##
+    print(f2-s2) ##
+    
+    s3 = time.time() ##
+    t1 = algo(lim1,lim2,drss,drr)     
+    f3 = time.time() ##
+    print(f3-s3) ##
+    #------------------------
+    
+    s4 = time.time() ##
+    table1 = pd.DataFrame(np.column_stack([t1[0],t1[1],t1[2], t1[3], t1[4]]), columns=['drss','drr', 'n', '%err drss','%err drr'])
+    drr_sort = table1.sort_values(by='%err drr')
+    table2 = table1.head(100)
+    drss_sort = table2.sort_values(by='%err drss')
+    ftab = drss_sort.head(50)
+    f4  = time.time() ##
+    print(f4-s4) ##
+    
+    s5 = time.time() ##
+    n,drrf,drssf = ftab.iloc[:,2].tolist(),ftab.iloc[:,1].tolist(),ftab.iloc[:,0].tolist()
+    smoo_errs = smooth_err() 
+    table3 = ftab.assign(smoo_err_pc = smoo_errs)
+    table4 = table3.sort_values(by='smoo_err_pc')
+    final = table4.head(finalvals)
+    f5 = time.time() ##
+    print(f5-s5) ##
+    
+    return final
+
