@@ -1,13 +1,3 @@
-%matplotlib inline
-import numpy as np 
-import matplotlib.pyplot as plt
-import math as m
-import warnings
-from sympy.interactive import printing 
-import pandas as pd
-printing.init_printing(use_latex = (True))
-import time
-
 class ScaleFactors:
     
     global afull #full scale amplitude 
@@ -49,4 +39,18 @@ class ScaleFactors:
     
     def iPOW(self):
         return (int(str(self.num), 16)*360)/(2**16)
+    
+    def dbm_perc(self): #function converts dbm value to % 
+        dbmin, dbmax = -94, 2 #limits
+        a = 10**(2/20)
+        b = 10**(self.num/20)
+        c = (b/a)*100
+        if c>1: return round(c)
+        else: return c
         
+    def perc_dbm(self): #function converts % value to dbm
+        if self.num==0: return -94
+        else:
+            a = 10**(2/20)/100
+            b = m.log10(self.num*a)*20
+            return b
